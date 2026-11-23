@@ -7,7 +7,12 @@ authors = [
     { name = "Caroline Cameron", email = "carro.cameron@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "keras>=3.15.1",
+    "pandas>=3.1.1",
+    "pillow>=13.0.0",
+    "tensorflow>=2.21.0",
+]
 
 [project.scripts]
 egg-hunt = "egg_hunt:main"
