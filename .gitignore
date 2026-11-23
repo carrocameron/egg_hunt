@@ -44,4 +44,5 @@ secrets.toml
 *.json
 
 # User defined extras
+.envrc
 # Complete to your desire
