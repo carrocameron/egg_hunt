@@ -49,3 +49,7 @@ secrets.toml
 raw_data/
 *.npz
 models/*.keras
+
+*.pt
+runs/
+yolo_data/
