@@ -75,8 +75,10 @@ def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN) -> Image.Imag
     a bbox from a detector (e.g. YOLO) if you add detection later."""
     x, y, w, h = bbox
     cx, cy = x + w / 2, y + h / 2
-    side = max(w, h) * (1 + 2 * margin)
-    return img.crop((cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2))
+    side = int(round(max(w, h) * (1 + 2 * margin)))
+    left = int(round(cx - side / 2))
+    top  = int(round(cy - side / 2))
+    return img.crop((left, top, left + side, top + side))
 
 
 def crop_egg(row: pd.Series, margin: float = MARGIN) -> Image.Image:
