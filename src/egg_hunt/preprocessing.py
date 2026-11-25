@@ -9,7 +9,9 @@ import pandas as pd
 from PIL import Image, ImageOps
 from tqdm import tqdm
 
-from egg_hunt.config import CACHE, IMG_SIZE, MARGIN, NUM_CLASSES, PAD_COLOR
+from keras.utils import to_categorical
+
+from egg_hunt.config import CACHE, IMG_SIZE, MARGIN, NUM_CLASSES, PAD_COLOR, JITTER, SEED
 
 ImageSource = Union[str, Path, bytes, BinaryIO, Image.Image, np.ndarray]
 
@@ -69,41 +71,60 @@ def load_split(labels_path, data_path) -> pd.DataFrame:
     return df
 
 
-def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN) -> Image.Image:
+def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN,
+                   jitter: float = 0.0) -> Image.Image:
     """Square crop around a COCO bbox [x, y, w, h] with a margin.
     This is the step a user does by hand before uploading. It also works with
     a bbox from a detector (e.g. YOLO) if you add detection later."""
     x, y, w, h = bbox
     cx, cy = x + w / 2, y + h / 2
-    side = int(round(max(w, h) * (1 + 2 * margin)))
+    side = max(w, h) * (1 + 2 * margin)
+
+    if jitter > 0:
+        rng = np.random.default_rng(SEED)
+        max_dx = (side - w) / 2 * jitter      # free space left/right of the egg
+        max_dy = (side - h) / 2 * jitter      # free space above/below the egg
+        cx += rng.uniform(-max_dx, max_dx)
+        cy += rng.uniform(-max_dy, max_dy)
+
+    side = int(round(side))
     left = int(round(cx - side / 2))
     top  = int(round(cy - side / 2))
     return img.crop((left, top, left + side, top + side))
 
 
-def crop_egg(row: pd.Series, margin: float = MARGIN) -> Image.Image:
+def crop_egg(row: pd.Series, margin: float = MARGIN,
+             jitter: float = 0.0) -> Image.Image:
     """One dataframe row -> cropped egg (PIL, not resized). Good for viewing."""
-    return crop_from_bbox(load_image(row["path"]), row["bbox"], margin)
+    return crop_from_bbox(load_image(row["path"]), row["bbox"], margin, jitter)
 
 
-def build_arrays(df: pd.DataFrame, img_size: int = IMG_SIZE):
-    from keras.utils import to_categorical
+def build_arrays(df: pd.DataFrame, img_size: int = IMG_SIZE, jitter: float = 0.0):
 
     df = df.reset_index(drop=True)                     # row i in df == X[i]
     X = np.zeros((len(df), img_size, img_size, 3), dtype=np.uint8)
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Building arrays"):
-        X[i] = preprocess_image(crop_egg(row), img_size)   # <- same function the app uses
+        X[i] = preprocess_image(crop_egg(row, jitter=jitter), img_size)   # <- same function the app uses
     y = to_categorical(df["category_id"], num_classes=NUM_CLASSES)
     return X, y
 
 
 def get_cropped_arrays(train_df: pd.DataFrame, test_df: pd.DataFrame,
-                       cache_path=CACHE, img_size: int = IMG_SIZE):
+                       cache_path=CACHE, img_size: int = IMG_SIZE,
+                       jitter_train: bool = True,
+                       jitter_test: bool = False,
+                       jitter: float = JITTER):
     if os.path.exists(cache_path):
         data = np.load(cache_path)
         return data["X_train"], data["y_train"], data["X_test"], data["y_test"]
 
-    X_train, y_train = build_arrays(train_df, img_size)
-    X_test,  y_test  = build_arrays(test_df,  img_size)
+    if jitter_train:
+        X_train, y_train = build_arrays(train_df, img_size, jitter=jitter, seed=SEED)
+    else: X_train, y_train = build_arrays(train_df, img_size)
+
+    if jitter_test:
+        X_test,  y_test  = build_arrays(test_df,  img_size, jitter=jitter, seed=SEED)
+    else: X_test,  y_test  = build_arrays(test_df,  img_size)
+
     np.savez(cache_path, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
     return X_train, y_train, X_test, y_test
