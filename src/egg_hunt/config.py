@@ -2,7 +2,8 @@ from pathlib import Path
 
 IMG_SIZE = 224
 MARGIN = 0.3               # 20% margin around the egg on each side (training crops)
-JITTER = 0.5               # how far the centre may move, as a share of the free margin space
+JITTER = 0.5  # how far the centre may move, as a share of the free margin space
+SEED = 42
 PAD_COLOR = (0, 0, 0)      # same black PIL uses when a bbox crop runs past the image edge
 
 # Fixed list in category_id order – like taxifare's fixed min/max values,
