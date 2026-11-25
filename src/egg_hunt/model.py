@@ -3,6 +3,10 @@ from keras import Input, Sequential, layers, applications, optimizers
 from egg_hunt.config import IMG_SIZE, NUM_CLASSES
 
 
+# ------------------------------------------------------------------------------
+# BUILDING THE BLOCKS
+# ------------------------------------------------------------------------------
+
 def augmentation_block(seed=None) -> Sequential:
     """Random changes during training only (inactive in predict/evaluate).
     Runs on 0–255 values."""
@@ -11,7 +15,7 @@ def augmentation_block(seed=None) -> Sequential:
         layers.RandomRotation(0.25, fill_mode="constant", seed=seed),
         layers.RandomZoom(0.1, fill_mode="constant", seed=seed),
         layers.RandomContrast(0.2, seed=seed),
-        layers.RandomBrightness(0.2, value_range=(0, 255), seed=seed),  # NEW: different microscopes/stains
+        layers.RandomBrightness(0.2, value_range=(0, 255), seed=seed),
     ], name="augmentation")
 
 
@@ -38,7 +42,7 @@ def conv_block(filters):
         layers.MaxPooling2D(2),
     ]
 
-def classifier_block(num_classes: int = NUM_CLASSES) -> Sequential:
+def classifier_flatten_block(num_classes: int = NUM_CLASSES) -> Sequential:
     return Sequential([
         layers.Flatten(),
         layers.Dense(128, activation="relu"),
@@ -46,62 +50,59 @@ def classifier_block(num_classes: int = NUM_CLASSES) -> Sequential:
         layers.Dense(num_classes, activation="softmax"),
     ], name="classifier")
 
+def classifier_global_average(num_classes: int = NUM_CLASSES):
+    return Sequential([
+        layers.GlobalAveragePooling2D(),  # instead of Flatten -> 12.8M params gone
+        layers.Dropout(0.4),
+        layers.Dense(num_classes, activation="softmax")
+    ], name="classifier")
+
+# ------------------------------------------------------------------------------
+# BUILDING THE MODELS
+# ------------------------------------------------------------------------------
+
 def build_model(img_size=IMG_SIZE, num_classes=NUM_CLASSES,
                 augment=False, seed=None, lr=1e-3):
     """Raw uint8 images (n, 224, 224, 3) in -> class probabilities (n, 11) out."""
-
     model = Sequential(name="egg_classifier_cnn")
-
     model.add(Input(shape=(img_size, img_size, 3)))
-
     if augment:
         model.add(augmentation_block(seed))
-
     model.add(rescaling_block())
-    model.add(cnn_block())
-    model.add(classifier_block(num_classes))
 
+    model.add(cnn_block())
+
+    model.add(classifier_flatten_block(num_classes))
     model.compile(
         optimizer="adam",
         loss="categorical_crossentropy",
         metrics=["accuracy", "Recall", "Precision", "AUC"]
         )
-
     return model
 
-def build_model_v2(img_size=IMG_SIZE, num_classes=NUM_CLASSES,
-                augment=False, seed=None, lr=1e-3):
-
+def build_model_global_average(img_size=IMG_SIZE, num_classes=NUM_CLASSES, augment=False, seed=None):
     model = Sequential(name="egg_classifier_cnn")
-
     model.add(Input(shape=(img_size, img_size, 3)))
-
     if augment:
         model.add(augmentation_block(seed))
-
-    model.add(layers.Rescaling(1.0 / 255))
+    model.add(rescaling_block())
 
     for f in (32, 64, 128, 256):                 # 4 blocks instead of 3
         for layer in conv_block(f):
             model.add(layer)
 
-    model.add(layers.GlobalAveragePooling2D())   # instead of Flatten -> 12.8M params gone
-    model.add(layers.Dropout(0.4))
-    model.add(layers.Dense(num_classes, activation="softmax"))
-
+    model.add(classifier_global_average(num_classes))
     model.compile(
         optimizer="adam",
         loss="categorical_crossentropy",
         metrics=["accuracy", "Recall", "Precision", "AUC"]
         )
-
     return model
 
-def build_transfer_model(img_size=IMG_SIZE, num_classes=NUM_CLASSES,
+def build_model_efficientNet(img_size=IMG_SIZE, num_classes=NUM_CLASSES,
                          augment=False, seed=None, lr=1e-3):
     """Raw uint8 images (n, 224, 224, 3) in -> class probabilities out.
     EfficientNet does its own rescaling, so NO Rescaling(1/255) here."""
-
     base = applications.EfficientNetB0(
         include_top=False, weights="imagenet",
         input_shape=(img_size, img_size, 3),
@@ -109,17 +110,13 @@ def build_transfer_model(img_size=IMG_SIZE, num_classes=NUM_CLASSES,
     base.trainable = False            # phase 1: only train the new head
 
     model = Sequential(name="egg_classifier")
-
     model.add(Input(shape=(img_size, img_size, 3)))
-
     if augment:
         model.add(augmentation_block(seed))
-
     model.add(base)
     model.add(layers.GlobalAveragePooling2D())
     model.add(layers.Dropout(0.3))
     model.add(layers.Dense(num_classes, activation="softmax"))
-
     model.compile(
         optimizer="adam",
         loss="categorical_crossentropy",
