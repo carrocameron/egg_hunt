@@ -72,7 +72,7 @@ def load_split(labels_path, data_path) -> pd.DataFrame:
 
 
 def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN,
-                   jitter: float = 0.0) -> Image.Image:
+                   jitter: float = 0.0, rng: np.random.Generator | None = None) -> Image.Image:
     """Square crop around a COCO bbox [x, y, w, h] with a margin.
     This is the step a user does by hand before uploading. It also works with
     a bbox from a detector (e.g. YOLO) if you add detection later."""
@@ -81,7 +81,6 @@ def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN,
     side = max(w, h) * (1 + 2 * margin)
 
     if jitter > 0:
-        rng = np.random.default_rng(SEED)
         max_dx = (side - w) / 2 * jitter      # free space left/right of the egg
         max_dy = (side - h) / 2 * jitter      # free space above/below the egg
         cx += rng.uniform(-max_dx, max_dx)
@@ -94,17 +93,19 @@ def crop_from_bbox(img: Image.Image, bbox, margin: float = MARGIN,
 
 
 def crop_egg(row: pd.Series, margin: float = MARGIN,
-             jitter: float = 0.0) -> Image.Image:
+             jitter: float = 0.0, rng: np.random.Generator | None = None) -> Image.Image:
     """One dataframe row -> cropped egg (PIL, not resized). Good for viewing."""
-    return crop_from_bbox(load_image(row["path"]), row["bbox"], margin, jitter)
+    return crop_from_bbox(load_image(row["path"]), row["bbox"], margin, jitter, rng=rng)
 
 
-def build_arrays(df: pd.DataFrame, img_size: int = IMG_SIZE, jitter: float = 0.0):
+def build_arrays(df: pd.DataFrame, img_size: int = IMG_SIZE,
+                 jitter: float = 0.0, seed: int | None = SEED):
 
+    rng = np.random.default_rng(seed)
     df = df.reset_index(drop=True)                     # row i in df == X[i]
     X = np.zeros((len(df), img_size, img_size, 3), dtype=np.uint8)
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Building arrays"):
-        X[i] = preprocess_image(crop_egg(row, jitter=jitter), img_size)   # <- same function the app uses
+        X[i] = preprocess_image(crop_egg(row, jitter=jitter, ring=rng), img_size)   # <- same function the app uses
     y = to_categorical(df["category_id"], num_classes=NUM_CLASSES)
     return X, y
 
