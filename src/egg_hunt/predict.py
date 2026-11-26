@@ -1,7 +1,7 @@
 import numpy as np
 from keras.models import load_model as keras_load_model
 
-from egg_hunt.config import CLASS_NAMES, RAW_DATA
+from egg_hunt.config import CLASS_NAMES, RAW_DATA, MODEL_PATH
 from egg_hunt.preprocessing import preprocess_batch, preprocess_image
 
 
@@ -32,6 +32,8 @@ def predict(model, data, top_k: int = 3) -> list[dict]:
     Classify several cropped egg images.
     Returns one dict per image: the preprocessed image and its top_k species.
     """
+    if not isinstance(data, (list, tuple)):
+        data = [data]
     return [predict_single_image(model, d, top_k=top_k) for d in data]
 
 
@@ -44,9 +46,9 @@ if __name__ == "__main__":
     row = test_df.sample(1).iloc[0]
     egg = crop_egg(row)
 
-    model = load_model('/Users/alberto/code/carrocameron/egg_hunt/models/egg_classifier.keras')
+    model = load_model(MODEL_PATH)
 
-    result = predict(model, [egg])[0]
+    result = predict(model, egg)[0]
     print(f"True label: {row['category_name']}")
     print(f"Image shape: {result['image'].shape}")
     for p in result["predictions"]:
