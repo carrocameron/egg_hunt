@@ -105,7 +105,7 @@ def build_arrays(df: pd.DataFrame, img_size: int = IMG_SIZE,
     df = df.reset_index(drop=True)                     # row i in df == X[i]
     X = np.zeros((len(df), img_size, img_size, 3), dtype=np.uint8)
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Building arrays"):
-        X[i] = preprocess_image(crop_egg(row, jitter=jitter, ring=rng), img_size)   # <- same function the app uses
+        X[i] = preprocess_image(crop_egg(row, jitter=jitter, rng=rng), img_size)   # <- same function the app uses
     y = to_categorical(df["category_id"], num_classes=NUM_CLASSES)
     return X, y
 
