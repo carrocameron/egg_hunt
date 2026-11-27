@@ -1,17 +1,14 @@
-import io
 import json
 import os
-from pathlib import Path
-from typing import BinaryIO, Iterable, Union
 
 import numpy as np
 import pandas as pd
-from PIL import Image, ImageOps
+from PIL import Image
 from tqdm import tqdm
 
 from keras.utils import to_categorical
 
-from egg_hunt.config import CACHE, IMG_SIZE, MARGIN, NUM_CLASSES, PAD_COLOR, JITTER, SEED
+from egg_hunt.config import CACHE, IMG_SIZE, MARGIN, NUM_CLASSES, JITTER, SEED
 from egg_hunt.image_utils import (ImageSource, load_image, crop_from_bbox,
                                   preprocess_image, preprocess_batch)
 
