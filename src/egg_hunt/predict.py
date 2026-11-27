@@ -47,6 +47,7 @@ if __name__ == "__main__":
     egg = crop_egg(row)
 
     model = load_model(MODEL_PATH)
+    print(MODEL_PATH)
 
     result = predict(model, egg)[0]
     print(f"True label: {row['category_name']}")
