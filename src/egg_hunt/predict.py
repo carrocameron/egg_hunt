@@ -53,4 +53,4 @@ if __name__ == "__main__":
     print(f"True label: {row['category_name']}")
     print(f"Image shape: {result['image'].shape}")
     for p in result["predictions"]:
-        print(f"  {p['species']:<28} {p['confidence']:.1%}")
+        print(f"  {p['species']:<28} {p['confidence']:.4%}")
