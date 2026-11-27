@@ -25,13 +25,13 @@ def root():
 async def predict_endpoint(img: UploadFile, top_k: int = 3):
     """Upload a cropped egg image -> top_k species with confidence."""
     image_bytes = await img.read()
-    result = predict(app.state.model, image_bytes, top_k=top_k)[0]
+    result = predict(app.state.model, image_bytes, top_k=top_k)
 
-    buf = io.BytesIO()
-    Image.fromarray(result["image"]).save(buf, format="PNG")
-    img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    for prediction in result:
+        buf = io.BytesIO()
+        Image.fromarray(prediction["image"]).save(buf, format="PNG")
+        img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    return {
-        "image": img_b64,
-        "predictions": result
-    }
+        prediction['image'] = img_b64
+
+    return result
