@@ -28,6 +28,8 @@ data/
 
 # Saved models
 models/
+class_models/
+yolo_models/
 *.joblib
 *.h5
 
