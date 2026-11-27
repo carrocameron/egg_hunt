@@ -25,14 +25,16 @@ NUM_CLASSES = len(CLASS_NAMES)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DATA     = PROJECT_ROOT / "raw_data"
-MODELS_DIR   = PROJECT_ROOT / "models"
+CLASS_MODELS_DIR = PROJECT_ROOT / "class_models"   # Keras classifiers
+YOLO_MODELS_DIR  = PROJECT_ROOT / "yolo_models"    # YOLO detectors
 #MODEL_PATH   = MODELS_DIR / "egg_classifier.keras"
 CACHE = RAW_DATA / f"crops_{IMG_SIZE}_m{round(MARGIN*100)}%_j{round(JITTER*100)}%.npz"
 
-def _latest_model(models_dir: Path) -> Path:
-    """Return the most recently modified .keras file in models_dir."""
-    models = sorted(models_dir.glob("*.keras"), key=lambda p: p.stat().st_mtime)
-    # Fall back to the old default so importing config never crashes on an empty folder
-    return models[-1] if models else models_dir / "egg_classifier.keras"
+def _latest_model(models_dir: Path, pattern: str, default_name: str) -> Path:
+    """Return the most recently modified file matching `pattern` in models_dir."""
+    models = sorted(models_dir.glob(pattern), key=lambda p: p.stat().st_mtime)
+    # Fall back to a default name so importing config never crashes on an empty folder
+    return models[-1] if models else models_dir / default_name
 
-MODEL_PATH   = _latest_model(MODELS_DIR)
+CLASS_MODEL_PATH = _latest_model(CLASS_MODELS_DIR, "*.keras", "egg_classifier.keras")
+YOLO_MODEL_PATH  = _latest_model(YOLO_MODELS_DIR,  "*.pt",    "egg_detector.pt")
