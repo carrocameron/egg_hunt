@@ -22,4 +22,4 @@ async def predict_endpoint(img: UploadFile, top_k: int = 3):
     """Upload a cropped egg image -> top_k species with confidence."""
     image_bytes = await img.read()
     result = predict(app.state.model, image_bytes, top_k=top_k)[0]
-    return {"predictions": result["predictions"]}
+    return {"predictions": result}
